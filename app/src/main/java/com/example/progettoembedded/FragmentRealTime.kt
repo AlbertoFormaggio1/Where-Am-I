@@ -1,59 +1,70 @@
 package com.example.progettoembedded
 
+import android.graphics.drawable.Drawable
 import android.os.Bundle
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import android.widget.FrameLayout
+import android.widget.ImageView
+import android.widget.TextView
+import androidx.core.content.res.ResourcesCompat
 import androidx.fragment.app.Fragment
+import androidx.fragment.app.activityViewModels
+import androidx.lifecycle.Observer
 
-// TODO: Rename parameter arguments, choose names that match
-// the fragment initialization parameters, e.g. ARG_ITEM_NUMBER
-private const val ARG_PARAM1 = "param1"
-private const val ARG_PARAM2 = "param2"
-
-/**
- * A simple [Fragment] subclass.
- * Use the [FragmentRealTime.newInstance] factory method to
- * create an instance of this fragment.
- */
 class FragmentRealTime : Fragment() {
-    // TODO: Rename and change types of parameters
-    private var param1: String? = null
-    private var param2: String? = null
+    private lateinit var tv_long : TextView
+    private lateinit var tv_lat : TextView
+    private lateinit var tv_alt : TextView
+    private val applicationViewModel : ApplicationViewModel by activityViewModels()
 
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
-        arguments?.let {
-            param1 = it.getString(ARG_PARAM1)
-            param2 = it.getString(ARG_PARAM2)
+    override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
+                              savedInstanceState : Bundle?): View?{
+        val view = inflater.inflate(R.layout.fragment_real_time, container,false)
+
+        //Setting up cards programmatically
+        val listLabel : List<String> = listOf("Longitude","Latitude","Altitude")
+        val listImg : List<Int> = listOf(R.drawable.ic_longitude,R.drawable.ic_latitude,R.drawable.ic_altitude)
+        val list : List<FrameLayout> = listOf(view.findViewById(R.id.longitude),view.findViewById(R.id.latitude),view.findViewById(R.id.altitude))
+        for ((index, e) in list.withIndex()) {
+            val tvLabel = e.findViewById<TextView>(R.id.label)
+            tvLabel.text = listLabel[index]
+
+            val imgView = e.findViewById<ImageView>(R.id.imageView)
+            //Requiring Drawable for better performance
+            val myImage: Drawable? = ResourcesCompat.getDrawable(requireContext().resources, listImg[index], null)
+            imgView.setImageDrawable(myImage)
         }
+
+        tv_long = list[0].findViewById(R.id.value)
+        tv_lat = list[1].findViewById(R.id.value)
+        tv_alt = list[2].findViewById(R.id.value)
+
+        return view
     }
 
-    override fun onCreateView(
-        inflater: LayoutInflater, container: ViewGroup?,
-        savedInstanceState: Bundle?
-    ): View? {
-        // Inflate the layout for this fragment
-        return inflater.inflate(R.layout.fragment_real_time, container, false)
+    /**
+     * On view created. Gets the elements in the UI.
+     *
+     * Meglio fare cose in onViewCreated che in onCreateView perchè nel primo caso potrebbero esserci dei crash per qualche motivo.
+     * Robe legate alla view falle sempre qui, perchè qui sono sicuro che la view è già stata creata
+     *
+     * @param view
+     * @param savedInstanceState
+     */
+    override fun onViewCreated(view: View, savedInstanceState: Bundle?) {
+        super.onViewCreated(view, savedInstanceState)
+
+        applicationViewModel.getLocationLiveData().observe(viewLifecycleOwner, Observer{
+            updateUI(it)
+        })
     }
 
-    companion object {
-        /**
-         * Use this factory method to create a new instance of
-         * this fragment using the provided parameters.
-         *
-         * @param param1 Parameter 1.
-         * @param param2 Parameter 2.
-         * @return A new instance of fragment FragmentRealTime.
-         */
-        // TODO: Rename and change types and number of parameters
-        @JvmStatic
-        fun newInstance(param1: String, param2: String) =
-            FragmentRealTime().apply {
-                arguments = Bundle().apply {
-                    putString(ARG_PARAM1, param1)
-                    putString(ARG_PARAM2, param2)
-                }
-            }
+    private fun updateUI(location : LocationDetails)
+    {
+        tv_long.text = String.format("%.7f", location.longitude.toDouble())
+        tv_lat.text = String.format("%.7f", location.latitude.toDouble())
+        tv_alt.text = String.format("%.7f", location.altitude.toDouble())
     }
 }

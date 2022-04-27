@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:id="@+id/nav_graph.xml"
+    app:startDestination="@id/fragmentRealTime">
+
+    <fragment
+        android:id="@+id/fragmentRealTime"
+        android:name="com.example.progettoembedded.FragmentRealTime"
+        android:label="Real time location"
+        tools:layout="@layout/fragment_real_time">
+        <action
+            android:id="@+id/action_realTime_to_list"
+            app:destination="@id/fragmentList"/>
+    </fragment>
+
+    <fragment
+        android:id="@+id/fragmentList"
+        android:name="com.example.progettoembedded.fragmentList.FragmentList"
+        android:label="Records"
+        tools:layout="@layout/fragment_list"/>
+</navigation>

@@ -5,4 +5,6 @@
     <string name="label_latitude">Latitude</string>
     <!-- TODO: Remove or change this placeholder text -->
     <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="menu_item_live">Live Location</string>
+    <string name="menu_item_records">Records</string>
 </resources>

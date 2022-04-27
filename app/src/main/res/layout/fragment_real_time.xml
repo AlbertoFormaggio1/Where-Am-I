@@ -1,14 +1,58 @@
 <?xml version="1.0" encoding="utf-8"?>
-<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:padding="16dp"
     tools:context=".FragmentRealTime">
 
-    <!-- TODO: Update blank fragment layout -->
-    <TextView
+    <include android:id="@+id/longitude"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:text="@string/hello_blank_fragment" />
+        android:layout_height="wrap_content"
+        layout="@layout/card" />
 
-</FrameLayout>
+    <include android:id="@+id/latitude"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        layout="@layout/card"
+        app:layout_constraintTop_toBottomOf="@id/longitude"
+        android:layout_marginTop="10dp"/>
+
+    <include android:id="@+id/altitude"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        layout="@layout/card"
+        app:layout_constraintTop_toBottomOf="@id/latitude"
+        android:layout_marginTop="10dp"/>
+
+    <!--
+    <TextView
+        android:id="@+id/tv_longitude"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:layout_marginTop="20dp"
+        android:textSize="20sp"
+        android:text="" />
+
+    <TextView
+        android:id="@+id/tv_latitude"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:layout_marginTop="40dp"
+        android:textSize="20sp"
+        android:text="" />
+
+    <TextView
+        android:id="@+id/tv_altitude"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:layout_marginTop="60dp"
+        android:textSize="20sp"
+        android:text="" />
+
+        -->
+</androidx.constraintlayout.widget.ConstraintLayout>

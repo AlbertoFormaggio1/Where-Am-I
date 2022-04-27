@@ -2,6 +2,7 @@ plugins {
     id 'com.android.application'
     id 'org.jetbrains.kotlin.android'
     id 'com.google.android.libraries.mapsplatform.secrets-gradle-plugin'
+    id 'androidx.navigation.safeargs.kotlin'
 }
 
 android {
@@ -45,6 +46,14 @@ dependencies {
 
     implementation "com.google.android.gms:play-services-base:18.0.1"
     implementation "com.google.android.gms:play-services-auth:20.1.0"
+
+    implementation "androidx.navigation:navigation-fragment-ktx:$nav_version"
+    implementation "androidx.navigation:navigation-ui-ktx:$nav_version"
+
+    //Per importare viewModels usando il by
+    implementation "androidx.fragment:fragment-ktx:1.4.1"
+
+    implementation "androidx.compose.runtime:runtime-livedata:1.1.1"
 
     //Location
     implementation "com.google.android.gms:play-services-location:19.0.1"

@@ -2,122 +2,78 @@ package com.example.progettoembedded
 
 
 import android.Manifest
+import android.content.Context
 import android.content.DialogInterface
+import android.content.Intent
 import android.content.pm.PackageManager
-import android.location.Location
+import android.location.LocationManager
+import android.os.Build
 import android.os.Bundle
-import android.os.Looper
-import android.widget.TextView
+import android.provider.Settings
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
-import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
-import com.google.android.gms.location.*
-import java.text.DecimalFormat
-import java.util.concurrent.TimeUnit
+import androidx.lifecycle.ViewModelProvider
+import androidx.navigation.fragment.NavHostFragment
+import androidx.navigation.ui.AppBarConfiguration
+import androidx.navigation.ui.setupActionBarWithNavController
+import androidx.navigation.ui.setupWithNavController
+import com.google.android.material.bottomnavigation.BottomNavigationView
 
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var fusedLocationProvider: FusedLocationProviderClient
-    // LocationRequest - Requirements for the location updates, i.e., how often you
-    // should receive updates, the priority, etc.
-    private lateinit var locationRequest: LocationRequest
-    // LocationCallback - Called when FusedLocationProviderClient has a new Location.
-    private lateinit var locationCallback: LocationCallback
-    private var currentLocation: Location? = null
-    private lateinit var tv_long : TextView
-    private lateinit var tv_lat : TextView
-    private lateinit var tv_alt : TextView
+    lateinit var applicationViewModel : ApplicationViewModel
     private lateinit var requestPermissionLauncher : ActivityResultLauncher<Array<String>>
+    private lateinit var getResult : ActivityResultLauncher<Intent>
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        tv_long = findViewById(R.id.tv_longitude_data)
-        tv_lat = findViewById(R.id.tv_latitude_data)
-        tv_alt = findViewById(R.id.tv_altitude_data)
-
-        fusedLocationProvider = LocationServices.getFusedLocationProviderClient(this)
-
-        // TODO: Step 1.3, Create a LocationRequest.
-
-        //Creates a locationRequest and sets its parameters
-        locationRequest = LocationRequest.create().apply {
-            // Sets the desired interval for active location updates. This interval is inexact. You
-            // may not receive updates at all if no location sources are available, or you may
-            // receive them less frequently than requested. You may also receive updates more
-            // frequently than requested if other applications are requesting location at a more
-            // frequent interval.
-            //
-            // IMPORTANT NOTE: Apps running on Android 8.0 and higher devices (regardless of
-            // targetSdkVersion) may receive updates less frequently than this interval when the app
-            // is no longer in the foreground.
-            //This is the value which is usually used
-            interval = TimeUnit.SECONDS.toMillis(1)
-
-            // Sets the fastest rate for active location updates. This interval is exact, and your
-            // application will never receive updates more frequently than this value.
-            // The maximum interval if you are using the maximum power of your device
-            fastestInterval = TimeUnit.SECONDS.toMillis(1)
-
-            // Sets the maximum time when batched location updates are delivered. Updates may be
-            // delivered sooner than this interval.
-            maxWaitTime = TimeUnit.SECONDS.toMillis(1)
-
-            priority = LocationRequest.PRIORITY_HIGH_ACCURACY
-        }
-
-        // TODO: Step 1.4, Initialize the LocationCallback.
-        locationCallback = object : LocationCallback() {
-            override fun onLocationResult(locationResult: LocationResult) {
-                super.onLocationResult(locationResult)
-
-                // Normally, you want to save a new location to a database. We are simplifying
-                // things a bit and just saving it as a local variable, as we only need it again
-                // if a Notification is created (when the user navigates away from app).
-                updateUI(locationResult.lastLocation)
-
-                // Notify our Activity that a new location was added. Again, if this was a
-                // production app, the Activity would be listening for changes to a database
-                // with new locations, but we are simplifying things a bit to focus on just
-                // learning the location side of things.
-                //val intent = Intent("$PACKAGE_NAME.action.FOREGROUND_ONLY_LOCATION_BROADCAST")
-                //intent.putExtra(EXTRA_LOCATION, currentLocation)
-                //LocalBroadcastManager.getInstance(applicationContext).sendBroadcast(intent)
-
-                // Updates notification content if this service is running as a foreground
-                // service.
-                /*if (serviceRunningInForeground) {
-                    notificationManager.notify(
-                        NOTIFICATION_ID,
-                        generateNotification(currentLocation))
-                }*/
+        getResult = registerForActivityResult(
+            ActivityResultContracts.StartActivityForResult()) {
+            if(!isLocationEnabled()){
+                Toast.makeText(this, "Please enable GPS", Toast.LENGTH_SHORT).show()
             }
         }
 
+        //Setting up Bottom navigation bar
+        val navHostFragment = supportFragmentManager.findFragmentById(R.id.fragmentContainerView) as NavHostFragment
+        val navController = navHostFragment.navController
+        findViewById<BottomNavigationView>(R.id.bottomNav).setupWithNavController(navController)
+
+        val appBarConfiguration = AppBarConfiguration(setOf(R.id.fragmentRealTime,R.id.fragmentList))
+        setupActionBarWithNavController(navController, appBarConfiguration)
+
+        //Setting up the applicationViewModel for communicating between fragments
+        val viewModelFactory = ApplicationViewModelFactory(application)
+        applicationViewModel = ViewModelProvider(this, viewModelFactory).get(ApplicationViewModel::class.java)
+
+        //Managing permissions and how to handle responses to permissions request
         initializeResultLauncher()
         checkAskPermissions()
-
     }
 
-    fun updateGPS()
+    private fun isLocationEnabled() : Boolean
     {
-        //Checking if the app has the permission for using the position data
-        if(ActivityCompat.checkSelfPermission(this,Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-            ActivityCompat.checkSelfPermission(this,Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED)
-            {
-            fusedLocationProvider = LocationServices.getFusedLocationProviderClient(this)
-            fusedLocationProvider.lastLocation.addOnSuccessListener { location ->
-                updateUI(location)
-            }
-
-            // TODO: Step 1.5, Subscribe to location changes.
-            fusedLocationProvider.requestLocationUpdates(locationRequest, locationCallback, Looper.getMainLooper())
+        //If SDK is greater than API 28
+        if(Build.VERSION.SDK_INT >= Build.VERSION_CODES.P)
+        {
+            val lm : LocationManager = this.getSystemService(Context.LOCATION_SERVICE) as LocationManager;
+            return lm.isLocationEnabled
+        }
+        else
+        {
+            //If older API, then use deprecated version
+            val mode: Int = Settings.Secure.getInt(
+                this.contentResolver, Settings.Secure.LOCATION_MODE,
+                Settings.Secure.LOCATION_MODE_OFF
+            )
+            return mode != Settings.Secure.LOCATION_MODE_OFF
         }
     }
 
@@ -130,7 +86,7 @@ class MainActivity : AppCompatActivity() {
             when {
                 permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) ||
                         permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false) -> {
-                    updateGPS()
+                    requestLocationUpdates()
                 }
                 else -> {
                     Toast.makeText(
@@ -148,17 +104,21 @@ class MainActivity : AppCompatActivity() {
      * If the app already has the permission (either fine or coarse), then the position is retrieved and it is shown to the user
      * Otherwise, asks the user for permissions.
      */
-    fun checkAskPermissions()
+    private fun checkAskPermissions()
     {
+        if(!isLocationEnabled()) {
+            buildAlertMessageNoGps()
+        }
+
         when {
             //Permissions already granted
             ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
             ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED -> {
-                updateGPS()
+                requestLocationUpdates()
             }
             shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_COARSE_LOCATION) &&
                     shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) -> {
-                        showAlertOkNo("This app requires location permissions in order to work")
+                        buildAlertPermissions("This app requires location permissions in order to work")
                     }
             else -> {
                 // You can directly ask for the permission.
@@ -168,6 +128,18 @@ class MainActivity : AppCompatActivity() {
         }
     }
 
+    /**
+     * Request location updates
+     *
+     */
+    private fun requestLocationUpdates() {
+        applicationViewModel.startLocationUpdates()
+    }
+
+    /**
+     * Ask location permissions
+     *
+     */
     fun askLocationPermissions()
     {
         requestPermissionLauncher.launch(arrayOf(
@@ -175,7 +147,12 @@ class MainActivity : AppCompatActivity() {
             Manifest.permission.ACCESS_COARSE_LOCATION))
     }
 
-    fun showAlertOkNo(message : String)
+    /**
+     * Show alert ok no
+     *
+     * @param message
+     */
+    private fun buildAlertPermissions(message : String)
     {
         val builder = AlertDialog.Builder(this)
         builder.setTitle("Location Permissions")
@@ -186,24 +163,26 @@ class MainActivity : AppCompatActivity() {
             Toast.makeText(
                 applicationContext,
                 "This app won't work without location permissions",
-                Toast.LENGTH_LONG
+                Toast.LENGTH_SHORT
             ).show()})
 
 
         builder.show()
     }
 
-
-    fun updateUI(location : Location)
-    {
-        val df = DecimalFormat("#.########")
-
-        tv_long.text = df.format(location.longitude).toString()
-        tv_lat.text = df.format(location.latitude).toString()
-
-        if(location.hasAltitude())
-            tv_alt.text = df.format(location.altitude).toString()
-        else
-            tv_alt.text = "Not available"
+    private fun buildAlertMessageNoGps() {
+        val builder : AlertDialog.Builder = AlertDialog.Builder(this);
+        builder.setMessage("Your GPS seems to be disabled.\nThis app requires it in order to work.\nDo you want to enable GPS?")
+            .setCancelable(false)
+            .setPositiveButton("Yes")
+            { dialog, int ->
+                val intent = Intent(Settings.ACTION_LOCATION_SOURCE_SETTINGS)
+                getResult.launch(intent)
+            }
+            .setNegativeButton("No")
+            { dialog, id -> dialog.cancel()
+                Toast.makeText(this, "Please enable GPS", Toast.LENGTH_SHORT).show()};
+        val alert = builder.create()
+        alert.show()
     }
 }
