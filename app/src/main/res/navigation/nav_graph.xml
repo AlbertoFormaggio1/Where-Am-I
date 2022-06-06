@@ -8,7 +8,7 @@
     <fragment
         android:id="@+id/fragmentRealTime"
         android:name="com.example.progettoembedded.FragmentRealTime"
-        android:label="Real time location"
+        android:label="@string/menu_item_live"
         tools:layout="@layout/fragment_real_time">
         <action
             android:id="@+id/action_realTime_to_list"
@@ -17,7 +17,7 @@
 
     <fragment
         android:id="@+id/fragmentList"
-        android:name="com.example.progettoembedded.fragmentList.FragmentList"
-        android:label="Records"
-        tools:layout="@layout/fragment_list"/>
+        android:name="com.example.progettoembedded.ChartFragment"
+        android:label="@string/menu_item_records"
+        tools:layout="@layout/fragment_chart"/>
 </navigation>

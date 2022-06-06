@@ -1,11 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.constraintlayout.widget.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:padding="16dp"
-    tools:context=".FragmentRealTime">
+    tools:context=".FragmentRealTime"
+    android:orientation="vertical">
 
     <include android:id="@+id/longitude"
         android:layout_width="match_parent"
@@ -26,33 +27,12 @@
         app:layout_constraintTop_toBottomOf="@id/latitude"
         android:layout_marginTop="10dp"/>
 
-    <!--
-    <TextView
-        android:id="@+id/tv_longitude"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:layout_marginTop="20dp"
-        android:textSize="20sp"
-        android:text="" />
 
-    <TextView
-        android:id="@+id/tv_latitude"
+    <include android:id="@+id/map_button"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:layout_marginTop="40dp"
-        android:textSize="20sp"
-        android:text="" />
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:layout_marginTop="30dp"
+        layout = "@layout/map_button"/>
 
-    <TextView
-        android:id="@+id/tv_altitude"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:gravity="center"
-        android:layout_marginTop="60dp"
-        android:textSize="20sp"
-        android:text="" />
-
-        -->
-</androidx.constraintlayout.widget.ConstraintLayout>
+</LinearLayout>

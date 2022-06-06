@@ -1,10 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE resources [
+    <!ENTITY app_name "Where Am I?">
+    ]>
+
 <resources>
-    <string name="app_name">ProgettoEmbedded</string>
+    <string name="app_name">&app_name;</string>
     <string name="label_longitude">Longitude</string>
     <string name="label_altitude">Altitude</string>
     <string name="label_latitude">Latitude</string>
-    <!-- TODO: Remove or change this placeholder text -->
-    <string name="hello_blank_fragment">Hello blank fragment</string>
+    <string name="label_nodata">No Data</string>
     <string name="menu_item_live">Live Location</string>
     <string name="menu_item_records">Records</string>
+    <string name="channel_name">Location Reader Service</string>
+    <string name="channel_description">Location is being collected periodically</string>
+    <string name="notification_title">&app_name; is watching you</string>
+    <string name="notification_description">&app_name; is collecting your location in real time</string>
+
+    <string name="location_permission_title">Location Permission</string>
+    <string name="location_permission_message">This app needs to collect your location.\nPlease grant the related permissions.</string>
+
+    <string name="background_permission_title">Background Location Permission</string>
+    <string name="background_permission_message">This app needs to collect the background location on your device to show all the places you have been to in the last 5 minutes.
+        \nYou should enable background location in the next screen by selecting %s</string>
+    <string name="enable_GPS">Enable GPS, please</string>
+    <string name="permission_missing">This app won\'t work properly without the due permissions</string>
+    <string name="enable_GPS_message">Your GPS seems to be disabled.\nThis app requires it in order to work.\nDo you want to enable GPS?</string>
+    <string name="positive_answer">Yes</string>
+    <string name="negative_answer">No</string>
+    <string name="last_location_missing">Unable to center. Last location is missing. Check permissions or GPS</string>
+    <string name="you_are_here">You are here</string>
+    <string name="image_description">Card image</string>
+    <string name="placeholder_text">Label</string>
+    <string name="btn_center_txt">Center</string>
 </resources>

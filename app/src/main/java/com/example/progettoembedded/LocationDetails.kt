@@ -12,14 +12,11 @@ import java.util.*
  * @constructor Create empty Location details
  */
 data class LocationDetails (
-    val longitude : String,
+    val longitude : String?,
 
-    val latitude : String,
+    val latitude : String?,
 
-    val altitude : String,
+    val altitude : String?,
 
     val timestamp: Date
         )
-{
-
-}

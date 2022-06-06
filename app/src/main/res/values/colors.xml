@@ -6,6 +6,10 @@
     <color name="orange_200">#FFFFAB91</color>
     <color name="orange_500">#FFFF5722</color>
     <color name="orange_700">#FFE64A19</color>
+    <color name="secondary_300">#ff22cbff</color>
+    <color name="secondary_500">#ff00b4ff</color>
+    <color name="magenta_200">#FFF48FB1</color>
+    <color name="magenta_700">#FFC2185B</color>
     <color name="teal_200">#FF03DAC5</color>
     <color name="teal_700">#FF018786</color>
     <color name="black">#FF000000</color>
