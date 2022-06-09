@@ -1,6 +1,5 @@
 package com.example.progettoembedded
 
-import android.annotation.SuppressLint
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
@@ -18,7 +17,6 @@ import androidx.core.content.res.ResourcesCompat
 import androidx.core.graphics.drawable.toBitmap
 import androidx.fragment.app.Fragment
 import androidx.fragment.app.activityViewModels
-import androidx.lifecycle.lifecycleScope
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.android.gms.maps.CameraUpdateFactory
 import com.google.android.gms.maps.GoogleMap
@@ -27,8 +25,6 @@ import com.google.android.gms.maps.SupportMapFragment
 import com.google.android.gms.maps.model.BitmapDescriptorFactory
 import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 
 
 class FragmentRealTime : Fragment() {
@@ -71,6 +67,8 @@ class FragmentRealTime : Fragment() {
      */
     private var initialized = false
 
+    private var toast: Toast? = null
+
     private val receiverData : BroadcastReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             Log.d("ReceiverSample","ReceivedData")
@@ -82,9 +80,17 @@ class FragmentRealTime : Fragment() {
         }
     }
 
+    /**
+     * Updates the Interface: So both the value displayed on the cards and on the map
+     *
+     * @param animate
+     */
     private fun updateUI(animate: Boolean)
     {
-        val sample = model.readerService.currentSample
+        if(!model.mBound)
+            return
+
+        val sample = model.readerService!!.currentSample
         //Update the 3 cards shown at the top of the screen
         updateCards(sample)
         //If latitude and longitude are valid
@@ -99,8 +105,9 @@ class FragmentRealTime : Fragment() {
                 }
             }
         }
-        else {
-            //if a valid position is not available, we will not show anything on the map
+        else if(initialized){
+            //if a valid position is not available, we will not show anything on the map. The information about NoData available
+            //is handled already by the function updateCards()
             map.clear()
         }
     }
@@ -110,9 +117,9 @@ class FragmentRealTime : Fragment() {
      *
      */
     private fun insertMarker(){
-        if(model.mBound && model.readerService.isCollectingLocation && initialized) {
+        if(model.mBound && model.readerService!!.isCollectingLocation && initialized) {
 
-            val sample = model.readerService.currentSample
+            val sample = model.readerService!!.currentSample
             //Latitude and longitude cannot be null if the app is collecting location. There is no need to check
             val pos = LatLng(sample.latitude!!.toDouble(), sample.longitude!!.toDouble())
 
@@ -126,7 +133,7 @@ class FragmentRealTime : Fragment() {
             val marker = MarkerOptions()
                 .position(pos)
                 .title(getString(R.string.you_are_here))
-                .snippet("lat:" + pos.latitude.toString() + ", lng:" + pos.longitude.toString())
+                .snippet("Lat:" + pos.latitude.toString() + ", Lng:" + pos.longitude.toString())
                 .icon(icon)
             //Clear the marker previously positioned
             map.clear()
@@ -135,8 +142,6 @@ class FragmentRealTime : Fragment() {
         }
     }
 
-
-    @SuppressLint("MissingPermission")
     private val callback = OnMapReadyCallback { googleMap ->
 
         /**
@@ -151,12 +156,10 @@ class FragmentRealTime : Fragment() {
 
         map = googleMap
 
+        //Disabling zoom +/- controls at the bottom right-hand side of the screen
         map.uiSettings.isZoomControlsEnabled = false
+        //The user cannot tilt the map
         map.uiSettings.isTiltGesturesEnabled = false
-        /*
-        gMap.uiSettings.isScrollGesturesEnabled = false
-        gMap.uiSettings.isZoomGesturesEnabled = false
-        */
 
         map.setOnCameraMoveStartedListener {
             //If the camera has been moved by the user with a gesture, we have to stop to recenter the map every time a new location
@@ -172,6 +175,8 @@ class FragmentRealTime : Fragment() {
 
         //The map has been initialized
         initialized = true
+
+        updateUI(false)
     }
 
     /**
@@ -187,27 +192,10 @@ class FragmentRealTime : Fragment() {
         // - It is not possible for other applications to send these broadcasts to your app, so you don't need to worry about having security holes they can exploit.
         // - It is more efficient than sending a global broadcast through the system.
         //we are subscribing for updates about the latest sample
-        LocalBroadcastManager.getInstance(requireContext()).registerReceiver(receiverData, IntentFilter("NewSample"))
+        LocalBroadcastManager.getInstance(requireContext()).registerReceiver(receiverData, IntentFilter(ReaderService.ACTION_NEW_SAMPLE))
 
-        //If the activity is bounded to the service, I can show the current element instantly without waiting for an update (better
-        //for user experience).
-        //Otherwise, it it is not bound it may due to 2 reasons:
-        // 1. The app does not have permissions, therefore the app will not be bound to the service until these permissions are granted.
-        // 2. The app has just resumed from the background, therefore the main activity has to bound to the service. If it is not bound
-        //    maybe in the near future (after a few milliseconds) it could be that the activity will be bound to the service.
-        // Hence, we wait a few milliseconds and if the activity is now bound we are in scenario 2 and we can update the UI. Otherwise, we are
-        // in scenario 1 and we will not do anything
-        if(model.mBound){
-            //We want to update the UI but move the camera to current position without any animation (animate set to false)
-            updateUI(false)
-        }
-        else{
-            lifecycleScope.launch {
-                delay(200)
-                if(model.mBound)
-                    updateUI(false)
-            }
-        }
+        //We want to update the UI but move the camera to current position without any animation (animate set to false)
+        updateUI(false)
     }
 
     /**
@@ -216,10 +204,11 @@ class FragmentRealTime : Fragment() {
      * @param animate true if the movement has to be animated, or false if we can change the map camera position drastically
      */
     private fun moveCameraToCurrentPosition(animate : Boolean){
-        val sample = model.readerService.currentSample
+        val sample = model.readerService!!.currentSample
         if(sample.latitude != null && sample.longitude != null) {
             val pos = LatLng(sample.latitude.toDouble(), sample.longitude.toDouble())
             val update = CameraUpdateFactory.newLatLngZoom(pos, 15f)
+            //Checking if I should move to the current position with or without animation
             if(animate)
                 map.animateCamera(update)
             else
@@ -235,6 +224,7 @@ class FragmentRealTime : Fragment() {
         super.onPause()
 
         LocalBroadcastManager.getInstance(requireContext()).unregisterReceiver(receiverData)
+        //remove pending broadcasts, they must not be handled when the receiver is restarted
         receiverData.abortBroadcast
     }
 
@@ -249,6 +239,7 @@ class FragmentRealTime : Fragment() {
      */
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
                               savedInstanceState : Bundle?): View?{
+        //Inflating layout from the resources
         val view = inflater.inflate(R.layout.fragment_real_time, container,false)
 
         //Requires the map asynchronously (operation done in the main thread)
@@ -281,15 +272,27 @@ class FragmentRealTime : Fragment() {
         //Button to center the map
         val button = view.findViewById<Button>(R.id.center_button)
         button.setOnClickListener {
-            if(model.mBound){
+            if(model.mBound && model.readerService!!.isCollectingLocation){
                 if(initialized)
+                    //If the map was initialized and the service is bound, then move to the current position
                     moveCameraToCurrentPosition(true)
             }
-            else{
-                Toast.makeText(requireContext(),
+            else {
+                //The following code prevents from many toasts to be queued when the user clicks several times on the button center
+                //when the map is not ready (for example the GPS is deactivated or the app does not have the permissions.
+
+                //Cancel the previous toast from the queue
+                toast?.cancel()
+
+                //Create a new toast
+                toast = Toast.makeText(
+                    requireContext(),
                     getString(R.string.last_location_missing),
-                    Toast.LENGTH_LONG)
-                    .show()
+                    Toast.LENGTH_SHORT
+                )
+
+                //Show the new toast
+                toast?.show()
             }
 
             moveCamera = true
@@ -309,7 +312,7 @@ class FragmentRealTime : Fragment() {
     {
         if (location.longitude != null && location.latitude != null && location.altitude != null) {
             //Keeping always 7 decimal digits. Without this conversion a number such as 7.2, would be printed as 7.2 instead of
-                //7.2000000 (better to show the same number of digits for every number, it is also nicer to see by the user itself)
+                //7.2000000 (better to show the same number of digits for every number, it is also nicer to see by the user themselves)
             tvLong.text = String.format("%.7f", location.longitude.toDouble())
             tvLat.text = String.format("%.7f", location.latitude.toDouble())
             tvAlt.text = String.format("%.7f", location.altitude.toDouble())

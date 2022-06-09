@@ -5,6 +5,7 @@ import android.annotation.SuppressLint
 import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
+import android.app.Service
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.location.Location
@@ -12,16 +13,12 @@ import android.os.Binder
 import android.os.Build
 import android.os.IBinder
 import android.util.Log
-import androidx.core.app.ActivityCompat
-import androidx.lifecycle.LifecycleService
-import androidx.lifecycle.lifecycleScope
+import androidx.core.content.ContextCompat
 import androidx.localbroadcastmanager.content.LocalBroadcastManager
 import com.google.android.gms.location.*
-import kotlinx.coroutines.delay
-import kotlinx.coroutines.launch
 import java.util.*
 
-class ReaderService : LifecycleService() {
+class ReaderService : Service() {
 
     /**
      * Binder returned when someone binds to the service. Once the service is instantiated, it remains the same until the service gets stopped
@@ -47,8 +44,6 @@ class ReaderService : LifecycleService() {
     private lateinit var fusedLocationProvider : FusedLocationProviderClient
 
 
-    private var bindCount = 0
-
     /**
      * Is foreground. Checks whether the service is already a foreground service or not. If this variable is true, the service is a foreground service
      * and we do not have to publish another notification
@@ -65,6 +60,8 @@ class ReaderService : LifecycleService() {
      * Started. If the service has already been started, this variable is set to true. We initialize the service just once.
      */
     private var started = false
+
+    private var requestedUpdates = false
 
     /**
      * On create. This function is called when the service is created for the first time.
@@ -100,7 +97,6 @@ class ReaderService : LifecycleService() {
      * @return an object implementing the IBinder interface, in this case, it is a reference to ReaderService.
      */
     override fun onBind(intent: Intent): IBinder {
-        super.onBind(intent)
         handleBind()
         return mBinder
     }
@@ -120,7 +116,6 @@ class ReaderService : LifecycleService() {
      * from the one of the activity
      */
     private fun handleBind(){
-        bindCount++
         //Start the service itself, this way the lifecycle of the Service will be managed by the service itself. It will be separate from the one of the mainActivity
         startService(Intent(applicationContext,this::class.java))
     }
@@ -128,10 +123,7 @@ class ReaderService : LifecycleService() {
 
     override fun onUnbind(intent: Intent?): Boolean {
         super.onUnbind(intent)
-
         Log.d("unbind","Service unbounded")
-
-        bindCount--
 
         // Allow clients to rebind, in which case onRebind will be called.
         return true
@@ -168,6 +160,17 @@ class ReaderService : LifecycleService() {
             isForeground = false
             stopForeground(true)
         }
+    }
+
+    /**
+     * Gets called when the related task is removed. This could have been done also by
+     *
+     * @param rootIntent
+     */
+    override fun onTaskRemoved(rootIntent: Intent?) {
+        super.onTaskRemoved(rootIntent)
+        exitForeground()
+        stopSelf()
     }
 
     /**
@@ -213,10 +216,8 @@ class ReaderService : LifecycleService() {
             fusedLocationProvider = LocationServices.getFusedLocationProviderClient(application)
             //delete all previous locations already collected for any reasons
             fusedLocationProvider.flushLocations()
-            //The service is started, so we will not need to startLocationUpdates another time
+            //The service is started, so we do not have to get another fusedLocationProviderClient
             started = true
-            //Starts Location updates
-            startLocationUpdates()
         }
 
         //Manage what to do with the service.
@@ -224,54 +225,41 @@ class ReaderService : LifecycleService() {
         //to stop the service in that case.
         //manageService()
 
-        //The service needs to be a foreground one.
-        //Although it is not necessary to have the service as a foreground service even when the app is running, there is no harm in doing so. Therefore,
-        //the service becomes a foreground one as soon as possible and will be in foreground until the app is closed.
-        //This results in easier acquisition of the location and also there will not be any problem related to the Service <-> Foreground Service change
-        activateForeground()
-
         //If the service is killed by the system, tell android not to restart it
         return START_NOT_STICKY
-    }
-
-    override fun onDestroy() {
-        super.onDestroy()
-
-        exitForeground()
-        isCollectingLocation = false
-        samplesList.clear()
-        currentSample = LocationDetails(null, null, null, Date(System.currentTimeMillis()))
-        started = false
-        fusedLocationProvider.removeLocationUpdates(locationCallback)
-        fusedLocationProvider.flushLocations()
     }
 
     /**
      * Starts to collect location updates once the needed permissions are accepted by the user.
      *
      */
-    @SuppressLint("MissingPermission") //I do not know why Lint thinks I do not check permissions
-    internal fun startLocationUpdates(){
-        //Checks for permissions (although it is not necessary as we get here only after the activity is bound to the service, therefore when the permissions for the location
-        //were already granted).
-        if((ActivityCompat.checkSelfPermission(application, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED &&
-                    ActivityCompat.checkSelfPermission(application, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) ||
-            isCollectingLocation) {
-            return
-        }
+    @SuppressLint("MissingPermission")
+    fun startLocationUpdates(){
+        //The service needs to be a foreground one.
+        //Although it is not necessary to have the service as a foreground service even when the app is running, there is no harm in doing so. Therefore,
+        //the service becomes a foreground one as soon as possible and will be in foreground until the app is closed.
+        //This results in easier acquisition of the location and also there will not be any problem related to the Service <-> Foreground Service change
 
-        //Sets a small delay after starting the location updates. This operations is needed as the position is retrieved in the main thread as well as the map
-        //for showing the position. This may generate problems due to the fact that the location retrieval could happen at slower intervals.
-        //Therefore, we are setting this delay in order for the map to terminate its rendering
-        lifecycleScope.launch {
-            delay(1500)
-            Log.d("startLocationUpdates", "Started location updates")
+        //We are enabling the foreground here because, if that would have been done earlier, this would have resulted in the user knowing their
+        //location is being collected even though the permissions have not been granted to the app.
+        //This might raise the user's suspicions.
+        activateForeground()
 
-            fusedLocationProvider.requestLocationUpdates(
-                locationRequest,
-                locationCallback,
-                application.mainLooper
-            )
+        //Start collecting the location only the first time this method is invoked
+        if(!requestedUpdates) {
+            //Checks for permissions (although it is not necessary as we get here only after the activity is bound to the service, therefore when the permissions for the location
+            //were already granted).
+            if(ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                ContextCompat.checkSelfPermission(applicationContext, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED) {
+
+                    fusedLocationProvider.requestLocationUpdates(
+                    locationRequest,
+                    locationCallback,
+                    application.mainLooper
+                )
+                requestedUpdates = true
+
+            }
         }
     }
 
@@ -287,7 +275,6 @@ class ReaderService : LifecycleService() {
             updateLocation(locationResult.lastLocation)
         }
 
-        @SuppressLint("MissingPermission")
         override fun onLocationAvailability(locationAvailability: LocationAvailability) {
             super.onLocationAvailability(locationAvailability)
 
@@ -328,7 +315,7 @@ class ReaderService : LifecycleService() {
                 currentSample = LocationDetails(null, null, null, Date(System.currentTimeMillis()))
 
         //Notifying all listeners that a new sample has been retrieved
-        val intent = Intent("NewSample")
+        val intent = Intent(ACTION_NEW_SAMPLE)
         LocalBroadcastManager.getInstance(application).sendBroadcast(intent)
     }
 
@@ -346,12 +333,13 @@ class ReaderService : LifecycleService() {
         //Removing all the samples until all the samples are in the range from now to 5 minutes earlier.
         //I had to do it this way because iterating with for(sample in samplesList) was causing ConcurrentModificationException
         //as removing an element from the ArrayList invalidates the iterator.
-        while(samplesList[0].timestamp < threshold){
+
+        while(samplesList.isNotEmpty() && samplesList[0].timestamp < threshold){
             samplesList.removeAt(0)
         }
 
         Log.d("sender","Broadcast message")
-        val intent = Intent("ListUpdated")
+        val intent = Intent(ACTION_LIST_UPDATED)
         LocalBroadcastManager.getInstance(application).sendBroadcast(intent)
     }
 
@@ -402,5 +390,9 @@ class ReaderService : LifecycleService() {
         const val SECONDS_INTERVAL = 5
 
         private const val CHANNEL_ID = "LocationReader"
+
+        const val ACTION_NEW_SAMPLE = "NewSample"
+
+        const val ACTION_LIST_UPDATED = "ListUpdated"
     }
 }

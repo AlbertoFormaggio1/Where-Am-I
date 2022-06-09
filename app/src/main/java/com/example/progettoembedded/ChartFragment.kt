@@ -70,9 +70,11 @@ class ChartFragment : Fragment() {
 
     /**
      * It tells if we should center the camera of the map every time a position is retrieved. If the user has moved the map, we want to keep
-     * the settings made to the map by the user themselves instead of recentering
+     * the settings made to the map by the user themselves instead of re-centering
      */
     private var moveCamera = true
+
+    private var toast : Toast? = null
 
     /**
      * Receiver data, handles what to do when the list gets updated
@@ -84,16 +86,16 @@ class ChartFragment : Fragment() {
             //If the notification is received before the application is bounded to the service, ignore the update. Will be handled when
             //the bound to the service has been accomplished.
             if(model.mBound) {
-                val sample = model.readerService.currentSample
+                val sample = model.readerService!!.currentSample
                 //refresh the altitude chart with the new list
-                refreshChart(model.readerService.samplesList)
+                refreshChart(model.readerService!!.samplesList)
                 //If the map is initialized insert the marker and draw the polyline
                 if(initialized) {
                     map.clear()
                     //It location is not available, keep everything still until the next update
                     if (sample.latitude != null && sample.longitude != null && sample.altitude != null)
                         insertMarker()
-                    drawPolyline(model.readerService.samplesList, moveCamera)
+                    drawPolyline(model.readerService!!.samplesList, moveCamera)
                 }
             }
         }
@@ -118,13 +120,13 @@ class ChartFragment : Fragment() {
             return*/
 
         //If the list is not empty, then get the sample
-        if(model.mBound && model.readerService.samplesList.isNotEmpty())
-            sample = model.readerService.samplesList[model.readerService.samplesList.size-1]
+        if(model.mBound && model.readerService!!.samplesList.isNotEmpty())
+            sample = model.readerService!!.samplesList[model.readerService!!.samplesList.size-1]
         else
             return
 
         //lastKnownLocation = sample
-        //Latitude and longitude cannot be null  (fai che if non sta raccogliendo la posizione non mostrare la posizione)
+        //Latitude and longitude cannot be null
         if(sample.latitude != null && sample.longitude != null) {
             val pos = LatLng(sample.latitude.toDouble(), sample.longitude.toDouble())
 
@@ -137,7 +139,7 @@ class ChartFragment : Fragment() {
                 val marker = MarkerOptions()
                     .position(pos)
                     .title(getString(R.string.you_are_here))
-                    .snippet("lat:" + pos.latitude.toString() + ", lng:" + pos.longitude.toString())
+                    .snippet("Lat:" + pos.latitude.toString() + ", Lng:" + pos.longitude.toString())
                     .icon(icon)
                 map.addMarker(marker)
             }
@@ -178,18 +180,21 @@ class ChartFragment : Fragment() {
 
         if(model.mBound)
         {
-            drawPolyline(model.readerService.samplesList, true)
+            drawPolyline(model.readerService!!.samplesList, true)
             insertMarker()
         }
 
         map.setOnCameraMoveStartedListener {
-            //The user moved the camera. We stop the automatic recentering of the map
+            //The user moved the camera. We stop the automatic re-centering of the map
             if (it == GoogleMap.OnCameraMoveStartedListener.REASON_GESTURE) {
                 Log.d("moveCamera", "Camera moving")
                 moveCamera = false
             }
         }
+
         initialized = true
+
+        fillCharts()
     }
 
     /**
@@ -207,19 +212,17 @@ class ChartFragment : Fragment() {
         //    maybe in the near future (after a few milliseconds) it could be that the activity will be bound to the service.
         // Hence, we wait a few milliseconds and if the activity is now bound we are in scenario 2 and we can update the UI. Otherwise, we are
         // in scenario 1 and we will not do anything
-        if(model.mBound){
+        if(model.mBound)
             fillCharts()
-        }
         else{
-            lifecycleScope.launch{
-                delay(300)
-                if(model.mBound)
-                    fillCharts()
+            lifecycleScope.launch {
+                delay(200)
+                fillCharts()
             }
         }
 
         //Subscribe to new updates.
-        LocalBroadcastManager.getInstance(requireContext()).registerReceiver(receiverData, IntentFilter("ListUpdated"))
+        LocalBroadcastManager.getInstance(requireContext()).registerReceiver(receiverData, IntentFilter(ReaderService.ACTION_LIST_UPDATED))
     }
 
     /**
@@ -228,7 +231,10 @@ class ChartFragment : Fragment() {
      */
     private fun fillCharts()
     {
-        val list = model.readerService.samplesList
+        if(!model.mBound)
+            return
+
+        val list = model.readerService!!.samplesList
         //Refresh the altitude chart
         refreshChart(list)
         //If the map was already initialized
@@ -277,15 +283,26 @@ class ChartFragment : Fragment() {
         //Initializing the center. When it is clicked we have to recenter the map in order to show all the path.
         val centerBtn = view.findViewById<Button>(R.id.center_button)
         centerBtn.setOnClickListener{
-            if(model.mBound){
+            if(model.mBound && model.readerService!!.isCollectingLocation){
                 if(initialized)
                     map.animateCamera(cu)
             }
             else{
-                Toast.makeText(requireContext(),
+                //The following code prevents from many toasts to be queued when the user clicks several times on the button center
+                //when the map is not ready (for example the GPS is deactivated or the app does not have the permissions.
+
+                //Cancel the previous toast from the queue
+                toast?.cancel()
+
+                //Create a new toast
+                toast = Toast.makeText(
+                    requireContext(),
                     getString(R.string.last_location_missing),
-                    Toast.LENGTH_LONG)
-                    .show()
+                    Toast.LENGTH_SHORT
+                )
+
+                //Show the new toast
+                toast?.show()
             }
 
             moveCamera = true

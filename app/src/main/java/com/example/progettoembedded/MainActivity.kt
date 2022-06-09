@@ -2,7 +2,6 @@ package com.example.progettoembedded
 
 
 import android.Manifest
-import android.annotation.SuppressLint
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
@@ -13,6 +12,7 @@ import android.os.Bundle
 import android.os.IBinder
 import android.provider.Settings
 import android.util.Log
+import android.view.View
 import android.widget.Toast
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
@@ -21,11 +21,11 @@ import androidx.appcompat.app.AlertDialog
 import androidx.appcompat.app.AppCompatActivity
 import androidx.appcompat.app.AppCompatDelegate
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.lifecycleScope
 import androidx.navigation.fragment.NavHostFragment
 import androidx.navigation.ui.AppBarConfiguration
 import androidx.navigation.ui.NavigationUI
 import androidx.navigation.ui.setupActionBarWithNavController
-import androidx.navigation.ui.setupWithNavController
 import com.google.android.gms.common.api.ApiException
 import com.google.android.gms.location.LocationRequest
 import com.google.android.gms.location.LocationServices
@@ -33,6 +33,8 @@ import com.google.android.gms.location.LocationSettingsRequest
 import com.google.android.gms.location.LocationSettingsStatusCodes
 import com.google.android.material.bottomnavigation.BottomNavigationView
 import com.google.android.material.navigationrail.NavigationRailView
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 
 
 class MainActivity : AppCompatActivity() {
@@ -69,23 +71,13 @@ class MainActivity : AppCompatActivity() {
 
             //The activity has bound to the service
             model.mBound = true
+
+            checkAskPermissions()
         }
 
         override fun onServiceDisconnected(arg0: ComponentName) {
             model.mBound = false
-        }
-    }
-
-
-    /**
-     * On pause. Called when the main activity pauses itself. Unbinds the activity from the service.
-     *
-     */
-    override fun onPause() {
-        super.onPause()
-        if(model.mBound){
-            unbindService(connection)
-            model.mBound = false
+            model.readerService = null
         }
     }
 
@@ -97,7 +89,6 @@ class MainActivity : AppCompatActivity() {
      *
      * @param savedInstanceState
      */
-    @SuppressLint("CutPasteId")
     override fun onCreate(savedInstanceState: Bundle?) {
         //Disabling Dark mode
         AppCompatDelegate.setDefaultNightMode(AppCompatDelegate.MODE_NIGHT_NO)
@@ -122,20 +113,22 @@ class MainActivity : AppCompatActivity() {
 
         //Setting up Bottom navigation bar programmatically based on the orientation.
         //If the phone is PORTRAIT mode, then we are using a bottomNav to show the menu, otherwise we will be using a NavigationRailView
-        //as a sidebar
+        //as sidebar
         val navHostFragment = supportFragmentManager.findFragmentById(R.id.fragmentContainerView) as NavHostFragment
         val navController = navHostFragment.navController
+        val myNav = findViewById<View>(R.id.bottomNav)
         if(this.resources.configuration.orientation == Configuration.ORIENTATION_PORTRAIT) {
-            val bottomNav = findViewById<BottomNavigationView>(R.id.bottomNav)
-            bottomNav.setupWithNavController(navController)
-            val appBarConfiguration =
-                AppBarConfiguration(setOf(R.id.fragmentRealTime, R.id.fragmentList))
-            setupActionBarWithNavController(navController, appBarConfiguration)
+            val bottomNav = myNav as BottomNavigationView
+            NavigationUI.setupWithNavController(bottomNav,navController)
         }
         else{
-            val sideNav = findViewById<NavigationRailView>(R.id.bottomNav)
+            val sideNav = myNav as NavigationRailView
             NavigationUI.setupWithNavController(sideNav,navController)
         }
+
+        //The name displayed on the appBar needs to be the name of the current fragment
+        val appBarConfiguration = AppBarConfiguration(setOf(R.id.fragmentRealTime, R.id.fragmentList))
+        setupActionBarWithNavController(navController, appBarConfiguration)
     }
 
     /**
@@ -148,6 +141,41 @@ class MainActivity : AppCompatActivity() {
         //Managing permissions and how to handle responses to permissions request.
         //Checking this every time the app is started because it could be that the user disabled the location manually after closing the app
         initializeResultLauncher()
+
+        //Binding to Service
+        val intent = Intent(this, ReaderService::class.java)
+        bindService(intent, connection, Context.BIND_AUTO_CREATE)
+    }
+
+    override fun onStop() {
+        super.onStop()
+
+        if(model.mBound){
+            unbindService(connection)
+        }
+    }
+
+    /**
+     * Initializes the {@code ActivityResultCallback} responsible for handling the user's response to the permission request
+     */
+    private fun initializeResultLauncher()
+    {
+        requestPermissionLauncher = registerForActivityResult( ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
+            when {
+                //If at least one of the first 2 permission is available, then readerService is initialized
+                (permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) ||
+                        permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false)) -> {
+                    requestLocationUpdates()
+                }
+                else -> {
+                    Toast.makeText(
+                        applicationContext,
+                        R.string.permission_missing,
+                        Toast.LENGTH_LONG
+                    ).show()
+                }
+            }
+        }
     }
 
     /**
@@ -156,7 +184,6 @@ class MainActivity : AppCompatActivity() {
      */
     override fun onResume() {
         super.onResume()
-        checkAskPermissions()
     }
 
     /**
@@ -167,6 +194,9 @@ class MainActivity : AppCompatActivity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
 
+        //If the position has already been asked to the user in this instance of the app, then we will not be asking the position again
+        //even when the screen is rotated (hence, the activity gets destroyed).
+        //If the app is restarted, we want to ask the user to enable the position if not already enabled
         outState.putBoolean("hasAskedForLocation",hasAskedForPosition)
     }
 
@@ -213,29 +243,6 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
-     * Initializes the {@code ActivityResultCallback} responsible for handling the user's response to the permission request
-     */
-    private fun initializeResultLauncher()
-    {
-        requestPermissionLauncher = registerForActivityResult( ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
-            when {
-                    //If at least one of the first 2 permission is available, then readerService is initialized
-                (permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) ||
-                        permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false)) -> {
-                    requestLocationUpdates()
-                }
-                else -> {
-                    Toast.makeText(
-                        applicationContext,
-                        R.string.permission_missing,
-                        Toast.LENGTH_LONG
-                    ).show()
-                }
-            }
-        }
-    }
-
-    /**
      * Checks whether the app already has the location permissions.
      * If the app already has the permission (either fine or coarse), then the position is retrieved and it is shown to the user
      * Otherwise, asks the user for permissions.
@@ -273,9 +280,16 @@ class MainActivity : AppCompatActivity() {
      *
      */
     private fun requestLocationUpdates() {
-        //Binding to Service
-        val intent = Intent(this, ReaderService::class.java)
-        bindService(intent, connection, Context.BIND_AUTO_CREATE)
+        //Sets a small delay after starting the location updates. This operations is needed as the position is retrieved in the main UI thread as well as the map
+        //for showing the position. This may generate problems due to the fact that the location retrieval can be delayed as the map rendering is being done in the mainLooper..
+        //Therefore, we are setting this delay in order for the map to terminate its rendering before starting the location updates.
+        //Furthermore, it is not necessary to check if the model is bound as we can get here only after the connection to the service has been established
+        if(model.mBound){
+            lifecycleScope.launch {
+                delay(1500)
+                model.readerService!!.startLocationUpdates()
+            }
+        }
     }
 
     /*
@@ -335,11 +349,13 @@ class MainActivity : AppCompatActivity() {
                 Toast.LENGTH_SHORT
             ).show()
         }
-
-
         builder.show()
     }
 
+    /**
+     * Build alert an alert dialog asking the user to enable the GPS from the settings.
+     *
+     */
     private fun buildAlertMessageNoGps() {
         val builder : AlertDialog.Builder = AlertDialog.Builder(this)
         builder.setMessage(R.string.enable_GPS_message)

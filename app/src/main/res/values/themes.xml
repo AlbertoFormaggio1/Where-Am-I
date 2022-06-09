@@ -9,11 +9,17 @@
         <!-- Status bar color. -->
         <item name="android:statusBarColor" tools:targetApi="l">?attr/colorPrimaryVariant</item>
         <item name="toolbarStyle">@style/custom_toolbar</item>
+        <item name="android:textViewStyle">@style/custom_textView</item>
         <!-- Customize your theme here. -->
+    </style>
+
+    <style name="custom_textView">
+        <item name="android:fontFamily">@font/proxima_nova</item>
     </style>
 
     <style name="custom_toolbar" parent="@style/Widget.AppCompat.Toolbar">
         <item name="titleTextColor">@color/white</item>
+        <item name="android:fontFamily">@font/proxima_nova</item>
     </style>
 
 </resources>
