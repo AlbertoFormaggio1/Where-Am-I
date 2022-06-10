@@ -67,6 +67,12 @@ class FragmentRealTime : Fragment() {
      */
     private var initialized = false
 
+    /**
+     * Variable used to display just one toast at once.
+     * When we the user clicks on the "Center" button multiple times, this would cause many toasts to queue up. Therefore,
+     * we are saving the current toast and if the user generates another toast, we cancel the current toast and display a new one.
+     * This way, there will always be one toast in the queue
+     */
     private var toast: Toast? = null
 
     private val receiverData : BroadcastReceiver = object : BroadcastReceiver() {
@@ -279,7 +285,7 @@ class FragmentRealTime : Fragment() {
             }
             else {
                 //The following code prevents from many toasts to be queued when the user clicks several times on the button center
-                //when the map is not ready (for example the GPS is deactivated or the app does not have the permissions.
+                //when the map is not ready (for example the GPS is deactivated or we are just waiting for the map to load).
 
                 //Cancel the previous toast from the queue
                 toast?.cancel()

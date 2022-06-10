@@ -54,14 +54,17 @@ class ChartFragment : Fragment() {
      */
     private var refTimestamp = 0L
 
+    /**
+     * Polyline options for showing the line. We keep it as a variable so we will not need to set the options (color, thickness, etc)
+     * every time we draw the polyline
+     */
     private lateinit var polylineOptions : PolylineOptions
     private val model: ActivityViewModel by activityViewModels()
-    private lateinit var cu : CameraUpdate
 
     /**
-     * Last known location. Keeps the last known location even when the location is not available. This way we can
+     * Camera Update always available to center the view showing the whole path done by the user in the last 5 minutes.
      */
-    //private var lastKnownLocation : LocationDetails? = null
+    private lateinit var cu : CameraUpdate
 
     /**
      * True if the map has already been initialized, false otherwise
@@ -106,20 +109,13 @@ class ChartFragment : Fragment() {
      *
      * @param loc
      */
-    private fun insertMarker(loc : LocationDetails? = null) {
+    private fun insertMarker() {
         val sample: LocationDetails
 
-        /*if (model.mBound && model.readerService.isCollectingLocation) {
-            sample = model.readerService.currentSample
-            //No position available
-            if (sample.latitude == null && sample.longitude == null)
-                return
-        } else if (loc != null)
-            sample = loc
-        else
-            return*/
-
         //If the list is not empty, then get the sample
+        //We are getting the sample this way and not with currentSample because we want to display the marker even
+        //when position is not available (we want to show where the last location was collected, otherwise by just showing a line
+        //the user cannot know which is the starting point and which is the ending one)
         if(model.mBound && model.readerService!!.samplesList.isNotEmpty())
             sample = model.readerService!!.samplesList[model.readerService!!.samplesList.size-1]
         else
@@ -146,14 +142,6 @@ class ChartFragment : Fragment() {
         }
     }
 
-    /*override fun onSaveInstanceState(outState: Bundle) {
-        super.onSaveInstanceState(outState)
-
-        outState.putString("longitude",lastKnownLocation?.longitude)
-        outState.putString("latitude",lastKnownLocation?.latitude)
-        outState.putString("altitude",lastKnownLocation?.altitude)
-    }*/
-
     private val callback = OnMapReadyCallback { googleMap ->
         map = googleMap
         /**
@@ -178,12 +166,6 @@ class ChartFragment : Fragment() {
         polylineOptions.startCap(RoundCap())
         polylineOptions.endCap(RoundCap())
 
-        if(model.mBound)
-        {
-            drawPolyline(model.readerService!!.samplesList, true)
-            insertMarker()
-        }
-
         map.setOnCameraMoveStartedListener {
             //The user moved the camera. We stop the automatic re-centering of the map
             if (it == GoogleMap.OnCameraMoveStartedListener.REASON_GESTURE) {
@@ -194,6 +176,7 @@ class ChartFragment : Fragment() {
 
         initialized = true
 
+        //Drawing the polyline/marker if possible
         fillCharts()
     }
 
@@ -270,15 +253,6 @@ class ChartFragment : Fragment() {
     override fun onCreateView(inflater: LayoutInflater, container: ViewGroup?,
                               savedInstanceState : Bundle?): View?{
         val view = inflater.inflate(R.layout.fragment_chart, container,false)
-
-        /*if(savedInstanceState != null) {
-            val lat = savedInstanceState.getString("latitude")
-            val long = savedInstanceState.getString("longitude")
-            val alt = savedInstanceState.getString("altitude")
-
-            if(lat != null && long != null && alt != null)
-                lastKnownLocation = LocationDetails(long, lat, alt, Date(System.currentTimeMillis()))
-        }*/
 
         //Initializing the center. When it is clicked we have to recenter the map in order to show all the path.
         val centerBtn = view.findViewById<Button>(R.id.center_button)
@@ -390,11 +364,10 @@ class ChartFragment : Fragment() {
         // if disabled, scaling can be done on x- and y-axis separately
         altitudeChart.setPinchZoom(false)
 
-        // set an alternative background color
-        //altitudeChart.setBackgroundColor(Color.BLACK)
+        //Setting the message to show in the text when no data is available
+        altitudeChart.setNoDataText("Waiting for your location to be retrieved...")
 
         val data = LineData()
-        data.setValueTextColor(R.color.light_grey)
 
         // add empty data
         altitudeChart.data = data
@@ -405,12 +378,12 @@ class ChartFragment : Fragment() {
         // modify the legend ...
         l.form = Legend.LegendForm.LINE
         //l.typeface = tfLight
-        l.textColor = R.color.light_grey
+        l.textColor = ContextCompat.getColor(requireContext(), R.color.default_text_color)
 
         val xl = altitudeChart.xAxis
         //xl.typeface = tfLight
         xl.position = XAxis.XAxisPosition.BOTTOM
-        xl.textColor = R.color.light_grey
+        xl.textColor = ContextCompat.getColor(requireContext(), R.color.default_text_color)
         //Using a custom formatter for the labels over the XAxis. (we wanted to format the labels as follows: MINUTE:SECOND)
         xl.valueFormatter = MyXAxisValueFormatter()
         //Show the gridLines corresponding to each label
@@ -426,7 +399,7 @@ class ChartFragment : Fragment() {
         xl.isGranularityEnabled = true
 
         val leftAxis = altitudeChart.axisLeft
-        leftAxis.textColor = (R.color.light_grey)
+        leftAxis.textColor = ContextCompat.getColor(requireContext(), R.color.default_text_color)
         //Set a line every 5 meters on the y axis
         leftAxis.setDrawGridLines(true)
         //Showing a label every 5meters

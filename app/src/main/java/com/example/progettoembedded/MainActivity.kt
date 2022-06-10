@@ -147,6 +147,10 @@ class MainActivity : AppCompatActivity() {
         bindService(intent, connection, Context.BIND_AUTO_CREATE)
     }
 
+    /**
+     * When the app leaves the foreground, we are unbinding the activity from the service
+     *
+     */
     override fun onStop() {
         super.onStop()
 
@@ -176,14 +180,6 @@ class MainActivity : AppCompatActivity() {
                 }
             }
         }
-    }
-
-    /**
-     * On resume. Called any time the activity goes in foreground, receiving the user input. We are checking if the due permission are given
-     * every time the activity goes in foreground. The user may have disabled the permissions by using the settings page
-     */
-    override fun onResume() {
-        super.onResume()
     }
 
     /**
@@ -283,7 +279,6 @@ class MainActivity : AppCompatActivity() {
         //Sets a small delay after starting the location updates. This operations is needed as the position is retrieved in the main UI thread as well as the map
         //for showing the position. This may generate problems due to the fact that the location retrieval can be delayed as the map rendering is being done in the mainLooper..
         //Therefore, we are setting this delay in order for the map to terminate its rendering before starting the location updates.
-        //Furthermore, it is not necessary to check if the model is bound as we can get here only after the connection to the service has been established
         if(model.mBound){
             lifecycleScope.launch {
                 delay(1500)

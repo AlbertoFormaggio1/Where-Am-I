@@ -55,8 +55,6 @@
         </activity>
 
         <!-- We created a foreground service able to retrieve the location.
-        By setting stopWithTask="true" we are bounding the service to the app lifecycle. If the app is killed, then the service
-        must be killed too.
         By setting exported=false we prevent any other app to access this service (it retrieves sensitive information (the location) that
         must be used only by the app itself).-->
         <service

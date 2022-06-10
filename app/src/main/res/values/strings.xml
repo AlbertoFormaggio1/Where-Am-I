@@ -13,7 +13,7 @@
     <string name="menu_item_records">Records</string>
     <string name="channel_name">Location Reader Service</string>
     <string name="channel_description">Location is being collected periodically</string>
-    <string name="notification_title">&app_name; is watching you</string>
+    <string name="notification_title">&app_name; is tracking you</string>
     <string name="notification_description">&app_name; is collecting your location in real time</string>
 
     <string name="location_permission_title">Location Permission</string>

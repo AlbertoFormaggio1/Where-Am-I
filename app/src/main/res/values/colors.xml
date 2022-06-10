@@ -1,10 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="orange_200">#FFFFAB91</color>
-    <color name="orange_500">#FFFF5722</color>
-    <color name="orange_700">#FFE64A19</color>
+    <color name="primary_200">#FFFFAB91</color>
+    <color name="primary_500">#FFFF5722</color>
+    <color name="primary_700">#FFE64A19</color>
     <color name="secondary_300">#ff22cbff</color>
     <color name="secondary_500">#ff00b4ff</color>
     <color name="white">#FFFFFFFF</color>
     <color name="light_grey">#FFD3D3D3</color>
+    <color name="default_text_color">#C0000000</color>
 </resources>

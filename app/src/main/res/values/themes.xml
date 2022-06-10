@@ -2,8 +2,8 @@
     <!-- Base application theme. -->
     <style name="Theme.ProgettoEmbedded" parent="Theme.MaterialComponents.DayNight">
         <!-- Primary brand color. -->
-        <item name="colorPrimary">@color/orange_500</item>
-        <item name="colorPrimaryVariant">@color/orange_700</item>
+        <item name="colorPrimary">@color/primary_500</item>
+        <item name="colorPrimaryVariant">@color/primary_700</item>
         <item name="colorOnPrimary">@color/white</item>
 
         <!-- Status bar color. -->
@@ -15,6 +15,7 @@
 
     <style name="custom_textView">
         <item name="android:fontFamily">@font/proxima_nova</item>
+        <item name="android:textColor">@color/default_text_color</item>
     </style>
 
     <style name="custom_toolbar" parent="@style/Widget.AppCompat.Toolbar">

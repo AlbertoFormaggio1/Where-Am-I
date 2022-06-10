@@ -61,6 +61,10 @@ class ReaderService : Service() {
      */
     private var started = false
 
+    /**
+     * If the service has already started requesting the updates to fusedLocationProviderClient, we will not start collecting the
+     * location again, as this would start a new request, erasing the timer for the callback that had been previously set.
+     */
     private var requestedUpdates = false
 
     /**
@@ -163,13 +167,17 @@ class ReaderService : Service() {
     }
 
     /**
-     * Gets called when the related task is removed. This could have been done also by
+     * Gets called when the related task is removed. This could have been done also by setting stopWithTask="true" in AndroidManifest.xml
+     * When the task is removed, the service is stopped.
      *
      * @param rootIntent
      */
     override fun onTaskRemoved(rootIntent: Intent?) {
         super.onTaskRemoved(rootIntent)
         exitForeground()
+        //When task is removed, the OnStop() method of the activity, which unbinds the activity itself from the service, has already
+        //been called.
+        //As no one is bound to the service and the service is stopped, this is the place where the service actually gets destroyed.
         stopSelf()
     }
 
@@ -219,11 +227,6 @@ class ReaderService : Service() {
             //The service is started, so we do not have to get another fusedLocationProviderClient
             started = true
         }
-
-        //Manage what to do with the service.
-        //As the service is START_STICKY, it could be that it is started by the system after everyone is unbounded, so we have
-        //to stop the service in that case.
-        //manageService()
 
         //If the service is killed by the system, tell android not to restart it
         return START_NOT_STICKY
@@ -391,6 +394,7 @@ class ReaderService : Service() {
 
         private const val CHANNEL_ID = "LocationReader"
 
+        //Defining the needed intent filters
         const val ACTION_NEW_SAMPLE = "NewSample"
 
         const val ACTION_LIST_UPDATED = "ListUpdated"
