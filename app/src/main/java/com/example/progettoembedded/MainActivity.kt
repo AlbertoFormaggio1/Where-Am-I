@@ -281,7 +281,7 @@ class MainActivity : AppCompatActivity() {
         //Therefore, we are setting this delay in order for the map to terminate its rendering before starting the location updates.
         if(model.mBound){
             lifecycleScope.launch {
-                delay(1500)
+                delay(2000)
                 model.readerService!!.startLocationUpdates()
             }
         }
