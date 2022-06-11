@@ -4,7 +4,7 @@
 </p>
 
 ## General Information
-This app was realized as final project for the course Programming of Embedded Systems at the University of Padua, having as teacher the professor Fantozzi Carlo.
+This app was realized as final project for the course Programming of Embedded Systems at the University of Padua, taught the professor Fantozzi Carlo.
 
 This app is made of 1 activity, helding 2 fragments, and a service.
 
