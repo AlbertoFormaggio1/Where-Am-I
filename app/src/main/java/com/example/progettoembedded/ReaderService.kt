@@ -121,7 +121,8 @@ class ReaderService : Service() {
      */
     private fun handleBind(){
         //Start the service itself, this way the lifecycle of the Service will be managed by the service itself. It will be separate from the one of the mainActivity
-        startService(Intent(applicationContext,this::class.java))
+        if(!started)
+            startService(Intent(applicationContext,this::class.java))
     }
 
 
@@ -133,28 +134,6 @@ class ReaderService : Service() {
         return true
     }
 
-
-    /*
-     * This method will be called when there is a change in the service configuration.
-     * It will decide whether the service should enter foreground mode/exit foreground mode or be killed
-     *
-    private fun manageService(){
-        when{
-            isBound() -> exitForeground()
-
-            isCollectingLocation && !mChangingConfiguration -> activateForeground()
-
-            !mChangingConfiguration -> stopSelf()
-        }
-
-        //If the user is not sharing its location and the app is not in the foreground, it might be suspicious and misleading for
-        //the user to see that their location is being retrieved.
-        if(!mChangingConfiguration && !isBound() && !isCollectingLocation)
-            exitForeground()
-        else
-            activateForeground()
-    }
-     */
 
     /**
      * Exit foreground. Removes the Service from the foreground state if it is in foreground.
@@ -219,14 +198,12 @@ class ReaderService : Service() {
 
         Log.d("Service","Started")
 
-        if(!started) {
-            //Get a provider
-            fusedLocationProvider = LocationServices.getFusedLocationProviderClient(application)
-            //delete all previous locations already collected for any reasons
-            fusedLocationProvider.flushLocations()
-            //The service is started, so we do not have to get another fusedLocationProviderClient
-            started = true
-        }
+        //Get a provider
+        fusedLocationProvider = LocationServices.getFusedLocationProviderClient(application)
+        //delete all previous locations already collected for any reasons
+        fusedLocationProvider.flushLocations()
+        //The service is started, so we do not have to get another fusedLocationProviderClient
+        started = true
 
         //If the service is killed by the system, tell android not to restart it
         return START_NOT_STICKY

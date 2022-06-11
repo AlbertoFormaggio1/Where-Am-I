@@ -259,7 +259,7 @@ class ChartFragment : Fragment() {
         centerBtn.setOnClickListener{
             if(model.mBound && model.readerService!!.isCollectingLocation){
                 if(initialized)
-                    map.animateCamera(cu)
+                    map.moveCamera(cu)
             }
             else{
                 //The following code prevents from many toasts to be queued when the user clicks several times on the button center

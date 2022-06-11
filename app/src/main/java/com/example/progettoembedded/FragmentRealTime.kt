@@ -81,17 +81,15 @@ class FragmentRealTime : Fragment() {
 
             //If the activity is bound to the user, we update the ui
             if(model.mBound) {
-                updateUI(true)
+                updateUI()
             }
         }
     }
 
     /**
      * Updates the Interface: So both the value displayed on the cards and on the map
-     *
-     * @param animate
      */
-    private fun updateUI(animate: Boolean)
+    private fun updateUI()
     {
         if(!model.mBound)
             return
@@ -107,7 +105,7 @@ class FragmentRealTime : Fragment() {
                 insertMarker()
                 //Center the camera to where the marker is placed if we should do so (the user has not moved the map camera)
                 if (moveCamera) {
-                    moveCameraToCurrentPosition(animate)
+                    moveCameraToCurrentPosition()
                 }
             }
         }
@@ -182,7 +180,7 @@ class FragmentRealTime : Fragment() {
         //The map has been initialized
         initialized = true
 
-        updateUI(false)
+        updateUI()
     }
 
     /**
@@ -201,24 +199,20 @@ class FragmentRealTime : Fragment() {
         LocalBroadcastManager.getInstance(requireContext()).registerReceiver(receiverData, IntentFilter(ReaderService.ACTION_NEW_SAMPLE))
 
         //We want to update the UI but move the camera to current position without any animation (animate set to false)
-        updateUI(false)
+        updateUI()
     }
 
     /**
      * Moves the camera to the last retrieved position in the readerService
-     *
-     * @param animate true if the movement has to be animated, or false if we can change the map camera position drastically
      */
-    private fun moveCameraToCurrentPosition(animate : Boolean){
+    private fun moveCameraToCurrentPosition(){
         val sample = model.readerService!!.currentSample
         if(sample.latitude != null && sample.longitude != null) {
             val pos = LatLng(sample.latitude.toDouble(), sample.longitude.toDouble())
             val update = CameraUpdateFactory.newLatLngZoom(pos, 15f)
-            //Checking if I should move to the current position with or without animation
-            if(animate)
-                map.animateCamera(update)
-            else
-                map.moveCamera(update)
+            //We cannot use animateCamera() as this would cause many messages I/Counters: exceeded sample count in FrameTime
+            //in the debug log
+            map.moveCamera(update)
         }
     }
 
@@ -281,7 +275,7 @@ class FragmentRealTime : Fragment() {
             if(model.mBound && model.readerService!!.isCollectingLocation){
                 if(initialized)
                     //If the map was initialized and the service is bound, then move to the current position
-                    moveCameraToCurrentPosition(true)
+                    moveCameraToCurrentPosition()
             }
             else {
                 //The following code prevents from many toasts to be queued when the user clicks several times on the button center
