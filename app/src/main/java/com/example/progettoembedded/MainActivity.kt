@@ -36,7 +36,12 @@ import com.google.android.material.navigationrail.NavigationRailView
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 
+/*
+For handling the request of permissions, we have done as said by the Android documentation:
+https://developer.android.com/training/permissions/requesting
 
+The workflow has been modified a bit, but everything has been explained properly as a comment in the dedicated methods
+ */
 class MainActivity : AppCompatActivity() {
 
     /**
@@ -166,16 +171,32 @@ class MainActivity : AppCompatActivity() {
     {
         requestPermissionLauncher = registerForActivityResult( ActivityResultContracts.RequestMultiplePermissions()) { permissions ->
             when {
-                //If at least one of the first 2 permission is available, then readerService is initialized
-                (permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false) ||
-                        permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false)) -> {
+                //If the app obtained the FINE_LOCATION permission, then we can check if the GPS has been enabled and we can ask the user
+                // to enable the GPS if not already enabled.
+                (permissions.getOrDefault(Manifest.permission.ACCESS_FINE_LOCATION, false)) -> {
+                    //If the permissions were granted, then I check if GPS is enabled.
+                    //It does not have any sense to ask the user to enable their GPS if they have not given the permissions to the app yet.
+                    //We are asking the user just once to enable the GPS in the current app lifecycle, that is why we check hasAskedForPosition
+                    if(!hasAskedForPosition) {
+                        hasAskedForPosition = true
+                        checkGPSEnabled(true)
+                    }
                     requestLocationUpdates()
                 }
+                //If the user has granted the COARSE_LOCATION permission we need to ask the user to grant the FINE_LOCATION permission,
+                //otherwise the app won't work.
+                //We are asking the user again because if they granted the permission for COARSE_LOCATION, that means they want
+                //to be tracked but unfortunately with approximate location fusedLocationProviderClient does not work properly
+                (permissions.getOrDefault(Manifest.permission.ACCESS_COARSE_LOCATION, false)) -> {
+                    checkAskPermissions()
+                }
+                //If the user refused to give the permission to the app, then we are respecting their decision. But we still
+                //inform them that the app won't work without the permissions.
                 else -> {
                     Toast.makeText(
                         applicationContext,
                         R.string.permission_missing,
-                        Toast.LENGTH_LONG
+                        Toast.LENGTH_SHORT
                     ).show()
                 }
             }
@@ -197,12 +218,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     /**
+     *
      * Check GPS enabled. Checks if the location has been enabled and show the user a dialog asking him to enable the GPS on its phone if
      * requested.
      *
-     * @param shouldShowDialog If this method should show a dialog or not
+     * @param shouldShowDialog Whether this method should show a dialog asking the user to enable the GPS or not
+     * @return true if GPS is enabled, false otherwise
      */
-    private fun checkGPSEnabled(shouldShowDialog : Boolean){
+    private fun checkGPSEnabled(shouldShowDialog : Boolean) {
         //Creating a dummy request, I just need to set the priority of the requests that will be done in the future.
         val dummyRequest = LocationRequest.create().setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY)
         val builder = LocationSettingsRequest.Builder().addLocationRequest(dummyRequest)
@@ -221,7 +244,7 @@ class MainActivity : AppCompatActivity() {
             }
             catch(exception : ApiException){
                 //We show the dialog only if shouldShowDialog is set to true, otherwise we will be just showing the user a toast asking to
-                    // enable gps
+                // enable gps
                 if(shouldShowDialog) {
                     when (exception.statusCode) {
                         LocationSettingsStatusCodes.RESOLUTION_REQUIRED -> buildAlertMessageNoGps()
@@ -245,28 +268,39 @@ class MainActivity : AppCompatActivity() {
      */
     private fun checkAskPermissions()
     {
+        //In the latest API versions of Android, it is not possible to ask only ACCESS_FINE_LOCATION permission, we need to ask the user also the
+        //ACCESS_COARSE_LOCATION permission
         val arrayPermissions = arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION,Manifest.permission.ACCESS_FINE_LOCATION)
 
-        //First of all, we check if the gps is enabled.
-        if(!hasAskedForPosition) {
-            hasAskedForPosition = true
-            checkGPSEnabled(true)
-        }
-
         //Then, we check if the permissions were already granted. If they were not and the app should show RequestPermissionRationale, we
-        //show the user a dialog, otherwise we just ask the user the location.
+        //show the user a dialog, otherwise we just ask the user the permission.
         when {
-            //Permissions already granted
-            (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
-            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)-> {
+            //Check if we can access
+            (ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED)-> {
+                //If the permissions were granted, then I check if GPS is enabled.
+                //It does not have any sense to ask the user to enable their GPS if they have not given the permissions to the app yet.
+                //We are asking the user just once to enable the GPS in the current app lifecycle, that is why we check hasAskedForPosition
+                if(!hasAskedForPosition) {
+                    hasAskedForPosition = true
+                    checkGPSEnabled(true)
+                }
                 requestLocationUpdates()
             }
-            shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_COARSE_LOCATION) &&
-                    shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) -> {
+            //If the app does not have FINE_LOCATION permission but has the COARSE_LOCATION one, then we explain the user that we need
+            //the fine location with a dialog.
+            shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_FINE_LOCATION) &&
+                    !shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_COARSE_LOCATION) -> {
                 val title = resources.getString(R.string.location_permission_title)
-                val message = resources.getString(R.string.location_permission_message)
-                        buildAlertPermissions(title,message,arrayPermissions)
-                    }
+                val message = resources.getString(R.string.location_permission_message_fine_needed)
+                buildAlertPermissions(title, message, arrayPermissions)
+            }
+            //If the app has neither fine location nor coarse location permission, then we show the user a generic message explaining
+            //them that we need their location
+            shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_COARSE_LOCATION) -> {
+                val title = resources.getString(R.string.location_permission_title)
+                val message = resources.getString(R.string.location_permission_message_generic)
+                buildAlertPermissions(title,message,arrayPermissions)
+            }
             else -> askPermissions(arrayPermissions)
         }
     }
@@ -286,28 +320,6 @@ class MainActivity : AppCompatActivity() {
             }
         }
     }
-
-    /*
-    private fun checkAskBackground() {
-        //Background location is treated in the same way as foreground location for android versions lower than Android 11
-        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.R)
-            return
-
-        val permissionsArray = arrayOf(Manifest.permission.ACCESS_BACKGROUND_LOCATION)
-
-        when {
-            //Permissions already granted
-            ContextCompat.checkSelfPermission(this, Manifest.permission.ACCESS_BACKGROUND_LOCATION) == PackageManager.PERMISSION_GRANTED -> {
-                model.readerService.isCollectingBackgroundLocation = true
-            }
-            shouldShowRequestPermissionRationale(Manifest.permission.ACCESS_BACKGROUND_LOCATION)-> {
-                val label = application.packageManager.backgroundPermissionOptionLabel
-                val message = String.format(resources.getString(R.string.background_permission_message),label)
-                val title = resources.getString(R.string.background_permission_title)
-                buildAlertPermissions(title, message, permissionsArray)
-            }
-        }
-    }*/
 
     /**
      * Asks permissions passed as parameters
@@ -331,13 +343,13 @@ class MainActivity : AppCompatActivity() {
         val builder = AlertDialog.Builder(this)
         builder.setTitle(title)
         builder.setMessage(message)
-        builder.setPositiveButton(getString(R.string.positive_answer)) { _, _ ->
+        builder.setPositiveButton(getString(R.string.ok_answer)) { _, _ ->
             askPermissions(
                 permissions
             )
         }
 
-        builder.setNeutralButton(getString(R.string.negative_answer)) { _, _ ->
+        builder.setNeutralButton(getString(R.string.cancel_answer)) { _, _ ->
             Toast.makeText(
                 applicationContext,
                 getString(R.string.permission_missing),

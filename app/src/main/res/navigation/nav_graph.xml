@@ -3,11 +3,11 @@
     xmlns:app="http://schemas.android.com/apk/res-auto"
     xmlns:tools="http://schemas.android.com/tools"
     android:id="@+id/nav_graph.xml"
-    app:startDestination="@id/fragmentRealTime">
+    app:startDestination="@id/RealTimeFragment">
 
     <fragment
-        android:id="@+id/fragmentRealTime"
-        android:name="com.example.progettoembedded.FragmentRealTime"
+        android:id="@+id/realTimeFragment"
+        android:name="com.example.progettoembedded.RealTimeFragment"
         android:label="@string/menu_item_live"
         tools:layout="@layout/fragment_real_time">
         <action

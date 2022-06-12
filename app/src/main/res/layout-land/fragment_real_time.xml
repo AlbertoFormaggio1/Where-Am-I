@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:padding="12dp"
-    tools:context=".FragmentRealTime"
+    tools:context=".RealTimeFragment"
     android:orientation="horizontal"
     android:gravity="center"
     android:baselineAligned="false">

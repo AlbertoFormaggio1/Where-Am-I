@@ -27,7 +27,7 @@ import com.google.android.gms.maps.model.LatLng
 import com.google.android.gms.maps.model.MarkerOptions
 
 
-class FragmentRealTime : Fragment() {
+class RealTimeFragment : Fragment() {
     /**
      * TextView showing Longitude. We are keeping this as variable in order to prevent to ask the UI for this textView
      * everytime we want to update the UI

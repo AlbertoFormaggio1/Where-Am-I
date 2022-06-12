@@ -5,7 +5,7 @@
     android:layout_height="match_parent"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:padding="16dp"
-    tools:context=".FragmentRealTime"
+    tools:context=".RealTimeFragment"
     android:orientation="vertical">
 
     <include android:id="@+id/longitude"
