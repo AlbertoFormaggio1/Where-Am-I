@@ -6,7 +6,9 @@
 ## General Information
 This app was realized as final project for the course Programming of Embedded Systems at the University of Padua, taught the professor Fantozzi Carlo.
 
-This app is made of 1 activity, helding 2 fragments, and a service.
+This app is made of 1 activity, holding 2 fragments, and a service.
+
+MainActivity is responsible for asking the permissions to the user.
 
 RealTimeFragment shows the live location (i.e. Longitude, Latitude and Altitude) of the user both graphically (on a map) and numerically. 
 
